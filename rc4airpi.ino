@@ -37,6 +37,17 @@
 #define PIN_PITCH 4
 #define PIN_VRP 5
 
+enum RCMode {Manual,YawSync,AttitudeSync};
+typedef struct AnalogIn_Calibration {
+  int max_val;
+  int min_val;
+};
+
+AnalogIn_Calibration thr_cal_data;
+AnalogIn_Calibration yaw_cal_data;
+AnalogIn_Calibration pitch_cal_data;
+AnalogIn_Calibration roll_cal_data;
+
 //RTIMULib vars
 RTIMU *imu;                                                  // the IMU object
 RTPressure *pressure;                                        // the pressure object
@@ -51,9 +62,26 @@ unsigned long last_cycle_timestamp_ms = 0;                   // Loop control
 unsigned int loopCount = 0;
 unsigned int longestLoop = 0;
 
+RCMode exp_rcmode=Manual;                                    // Expected Mode
+RCMode cur_rcmode=Manual;                                    // Current Mode, provide mode_changing stats
+
 void setup() {
   Serial.begin(115200);
   Serial1.begin(115200);
+
+  pinMode(PIN_CH5,INPUT_PULLUP);
+  pinMode(PIN_ADR,INPUT_PULLUP);
+  
+  pinMode(PIN_RUD,INPUT_PULLUP);
+  pinMode(PIN_THR_IO,INPUT_PULLUP);
+  pinMode(PIN_ELE,INPUT_PULLUP);
+  pinMode(PIN_AIL,INPUT_PULLUP);
+  pinMode(PIN_MIX,INPUT_PULLUP);
+  pinMode(PIN_VTAIL,INPUT_PULLUP);
+
+  pinMode(PIN_RF_LED,OUTPUT);                               //RF-LED
+  pinMode(PIN_PWR_LED,OUTPUT);                              //PWR-LED
+  pinMode(PIN_YAW_LED,OUTPUT);                              //YAW-LED
 
   Wire.begin();
   imu = RTIMU::createIMU(&settings);                        // create the imu object
@@ -101,8 +129,8 @@ void loop() {
   }
   /////////////////////////////////////////
   //Get IMU data
-  float latestPressure;
-  float latestTemperature;
+  //float latestPressure;
+  //float latestTemperature;
   RTVector3 latestGyro;
   RTVector3 latestAccel;
   RTVector3 latestCompass;
@@ -121,20 +149,37 @@ void loop() {
   //  Serial.println();
   /////////////////////////////////////////
   // IO Compute
-  if(true){                                                   // Manual
-    //
+  ////////////////////
+  // Read mode switch
+  if( digitalRead(PIN_VTAIL)==HIGH){                           // Manual
+    exp_rcmode=Manual;
   }
-  else if(true){                                              // Yaw Sync
-    //
+  else if((digitalRead(PIN_VTAIL)==LOW)&&(digitalRead(PIN_MIX)==HIGH)){ // Yaw Sync
+    exp_rcmode=YawSync;
   }
-  else if(true){                                              // Attitude Sync
-    //
+  else if((digitalRead(PIN_VTAIL)==LOW)&&(digitalRead(PIN_MIX)==LOW)){ // Attitude Sync
+    exp_rcmode=AttitudeSync;
   }
+  ////////////////////
+  // Input basic value
+  int throtte_cal,yaw_cal,pitch_cal,roll_cal;                 // Calibrated basic analog input
+  throtte_cal=(1000-(thr_cal_data.max_val-thr_cal_data.min_val))/2+analogRead(PIN_THR)-thr_cal_data.min_val;
+  yaw_cal=(1000-(yaw_cal_data.max_val-yaw_cal_data.min_val))/2+analogRead(PIN_YAW)-yaw_cal_data.min_val;
+  pitch_cal=(1000-(pitch_cal_data.max_val-pitch_cal_data.min_val))/2+analogRead(PIN_PITCH)-pitch_cal_data.min_val;
+  roll_cal=(1000-(roll_cal_data.max_val-roll_cal_data.min_val))/2+analogRead(PIN_ROLL)-roll_cal_data.min_val;
   /////////////////////////////////////////
   // Payload generate
   char payload[16];                                           // Data which will be sent by NRF24L01+ later
-  payload[0]='A';
-  payload[1]='P';
+  payload[0]='A';                                             // Header
+  payload[1]='P';                                             // Header
+  payload[2]=throtte_cal/256;                                 // First byte
+  payload[3]=throtte_cal%256;                                 // Second byte
+  payload[4]=yaw_cal/256;
+  payload[5]=yaw_cal%256;
+  payload[6]=pitch_cal/256;
+  payload[7]=pitch_cal%256;
+  payload[8]=roll_cal/256;
+  payload[9]=roll_cal%256;
   /////////////////////////////////////////
   // RF24 operate
 
