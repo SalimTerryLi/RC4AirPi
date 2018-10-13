@@ -124,9 +124,8 @@ void setup() {
   radio.setDataRate(RF24_1MBPS);
   radio.setAutoAck(0);
   radio.setCRCLength(RF24_CRC_8);
-  radio.openWritingPipe(pipes[0]);
-  radio.openReadingPipe(1, pipes[1]);
-  radio.startListening();
+  radio.openWritingPipe(pipes[1]);
+  radio.openReadingPipe(1, pipes[0]);
   printf_begin();
   radio.powerUp();
   radio.printDetails();
@@ -200,7 +199,8 @@ void loop() {
   payload[9] = roll_cal % 256;
   /////////////////////////////////////////
   // RF24 operate
-
+  radio.writeFast(&payload, 10);
+  radio.txStandBy();
   ////////////////////////////////////////////////////////////////////////////////////////////////
   if (longestLoop < millis() - startTimestamp) {
     longestLoop = millis() - startTimestamp;
