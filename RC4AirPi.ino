@@ -53,6 +53,8 @@ typedef struct AnaAnalogIn_Calibrations_Set {
 
 AnaAnalogIn_Calibrations_Set cal_data;
 
+int RFFailCount=0;
+
 //RTIMULib vars
 RTIMU *imu;                                                  // the IMU object
 RTPressure *pressure;                                        // the pressure object
@@ -84,9 +86,9 @@ void setup() {
   pinMode(PIN_MIX, INPUT_PULLUP);
   pinMode(PIN_VTAIL, INPUT_PULLUP);
 
-  pinMode(PIN_RF_LED, OUTPUT);                              //RF-LED
-  pinMode(PIN_PWR_LED, OUTPUT);                             //PWR-LED
-  pinMode(PIN_YAW_LED, OUTPUT);                             //YAW-LED
+  pinMode(PIN_RF_LED, OUTPUT);                              // RF-LED
+  pinMode(PIN_PWR_LED, OUTPUT);                             // PWR-LED
+  pinMode(PIN_YAW_LED, OUTPUT);                             // YAW-LED
 
   Wire.begin();
 
@@ -179,14 +181,20 @@ void loop() {
   }
   ////////////////////
   // Input basic value
-  int throtte_cal, yaw_cal, pitch_cal, roll_cal;              // Calibrated basic analog input
+  int throtte_cal, yaw_cal, pitch_cal, roll_cal,ch5_cal,ch6_cal,ch7_cal,ch8_cal,ch9_cal,ch10_cal;              // Calibrated basic analog input
   throtte_cal = 1000 + (1000 - (cal_data.thr_cal_data.max_val - cal_data.thr_cal_data.min_val)) / 2 + analogRead(PIN_THR) - cal_data.thr_cal_data.min_val;
   yaw_cal = 1000 + (1000 - (cal_data.yaw_cal_data.max_val - cal_data.yaw_cal_data.min_val)) / 2 + analogRead(PIN_YAW) - cal_data.yaw_cal_data.min_val;
   pitch_cal = 1000 + (1000 - (cal_data.pitch_cal_data.max_val - cal_data.pitch_cal_data.min_val)) / 2 + analogRead(PIN_PITCH) - cal_data.pitch_cal_data.min_val;
   roll_cal = 1000 + (1000 - (cal_data.roll_cal_data.max_val - cal_data.roll_cal_data.min_val)) / 2 + analogRead(PIN_ROLL) - cal_data.roll_cal_data.min_val;
+  ch5_cal=1000+digitalRead(PIN_CH5)*1000;
+  ch6_cal=1000+digitalRead(PIN_ADR)*1000;
+  ch7_cal=1000 + analogRead(PIN_VRP) / 1023.0 * 1000;
+  ch8_cal=1000+digitalRead(PIN_AIL)*1000;
+  ch9_cal=1000+digitalRead(PIN_ELE)*1000;
+  ch10_cal=1000+digitalRead(PIN_THR_IO)*1000;
   /////////////////////////////////////////
   // Payload generate
-  char payload[16];                                           // Data which will be sent by NRF24L01+ later
+  char payload[22];                                           // Data which will be sent by NRF24L01+ later
   payload[0] = 'A';                                           // Header
   payload[1] = 'P';                                           // Header
   payload[2] = throtte_cal / 256;                             // First byte
@@ -197,10 +205,50 @@ void loop() {
   payload[7] = pitch_cal % 256;
   payload[8] = roll_cal / 256;
   payload[9] = roll_cal % 256;
+  payload[10] = ch5_cal / 256;
+  payload[11] = ch5_cal % 256;
+  payload[12] = ch6_cal / 256;
+  payload[13] = ch6_cal % 256;
+  payload[14] = ch7_cal / 256;
+  payload[15] = ch7_cal % 256;
+  payload[16] = ch8_cal / 256;
+  payload[17] = ch8_cal % 256;
+  payload[18] = ch9_cal / 256;
+  payload[19] = ch9_cal % 256;
+  payload[20] = ch10_cal / 256;
+  payload[21] = ch10_cal % 256;
+  
   /////////////////////////////////////////
   // RF24 operate
-  radio.writeFast(&payload, 10);
+  char pong_back[10];
+  bool isRFok=false;
+  while(radio.available()){       
+    radio.read(&pong_back,10);
+    if ((pong_back[0]=='P') && (pong_back[1]=='A')){
+      isRFok=true;
+    }
+    else{
+      isRFok=false;
+    }
+  }
+  if (isRFok) {
+    RFFailCount=0;
+  }
+  else {
+    RFFailCount++;
+  }
+  if (RFFailCount<5) {
+    digitalWrite(PIN_RF_LED,HIGH);
+  }
+  else
+  {
+    digitalWrite(PIN_RF_LED,LOW);
+    RFFailCount=5;
+  }
+  radio.stopListening();
+  radio.writeFast(&payload, 22);
   radio.txStandBy();
+  radio.startListening();
   ////////////////////////////////////////////////////////////////////////////////////////////////
   if (longestLoop < millis() - startTimestamp) {
     longestLoop = millis() - startTimestamp;
