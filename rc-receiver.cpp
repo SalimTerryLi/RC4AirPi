@@ -19,7 +19,7 @@ typedef struct{
 	bool shouldServerExit=false;
 } rc_data;
 
-RF24 radio(22,0);
+RF24 radio(22,10);
 
 const uint64_t addresses[2] = { 0xABCDABCD71LL, 0x544d52687CLL };
 
@@ -63,6 +63,7 @@ int main(int argc, char** argv){
 		while (true){
 			if((*p_map).shouldServerExit)
 			{
+				printf("stopped.\n");
 				radio.powerDown();
 				shmdt(p_map) ;
 				shmctl(shm_id, IPC_RMID, 0);
@@ -110,7 +111,7 @@ int main(int argc, char** argv){
 	}
 	else if(!strcmp(argv[1],"stop"))
 	{
-		printf("stop\n");
+		printf("stopping...\n");
 		shm_id = shmget(IPCKEY,0, 0);
 		if (shm_id==-1){
 			perror("not running\n");
@@ -119,6 +120,10 @@ int main(int argc, char** argv){
 		p_map=(rc_data*)shmat(shm_id,NULL,0);
 		(*p_map).shouldServerExit=true;
 		shmdt(p_map) ;
+		if ((argc>=3)&&(!strcmp(argv[2],"-f"))){
+			shmctl(shm_id, IPC_RMID, 0);
+			printf("stopped.\n");
+		}
 		return 0;
 	}
 } // main
