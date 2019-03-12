@@ -39,6 +39,14 @@
 #define PIN_PITCH 4
 #define PIN_VRP 5
 
+int resizeInt(int val,int rangeOdi,int baseOdi,int rangeAim,int baseAim) {     // val included in range + base
+  return 
+  (val-baseOdi-rangeOdi/2) *
+  (1.0*rangeAim/rangeOdi) +
+  rangeAim/2 +
+  baseAim;
+}
+
 enum RCMode {Manual, YawSync, AttitudeSync};
 typedef struct AnalogIn_Calibration {
   int max_val;
@@ -182,10 +190,10 @@ void loop() {
   ////////////////////
   // Input basic value
   int throtte_cal, yaw_cal, pitch_cal, roll_cal,ch5_cal,ch6_cal,ch7_cal,ch8_cal,ch9_cal,ch10_cal;              // Calibrated basic analog input
-  throtte_cal = 1000 + (1000 - (cal_data.thr_cal_data.max_val - cal_data.thr_cal_data.min_val)) / 2 + analogRead(PIN_THR) - cal_data.thr_cal_data.min_val;
-  yaw_cal = 1000 + (1000 - (cal_data.yaw_cal_data.max_val - cal_data.yaw_cal_data.min_val)) / 2 + analogRead(PIN_YAW) - cal_data.yaw_cal_data.min_val;
-  pitch_cal = 1000 + (1000 - (cal_data.pitch_cal_data.max_val - cal_data.pitch_cal_data.min_val)) / 2 + analogRead(PIN_PITCH) - cal_data.pitch_cal_data.min_val;
-  roll_cal = 1000 + (1000 - (cal_data.roll_cal_data.max_val - cal_data.roll_cal_data.min_val)) / 2 + analogRead(PIN_ROLL) - cal_data.roll_cal_data.min_val;
+  throtte_cal = 1000 + resizeInt(analogRead(PIN_THR),cal_data.thr_cal_data.max_val - cal_data.thr_cal_data.min_val,cal_data.thr_cal_data.min_val,1001,0);
+  yaw_cal = 1000 + resizeInt(analogRead(PIN_YAW),cal_data.yaw_cal_data.max_val - cal_data.yaw_cal_data.min_val,cal_data.yaw_cal_data.min_val,1001,0);
+  pitch_cal = 1000 + resizeInt(analogRead(PIN_PITCH),cal_data.pitch_cal_data.max_val - cal_data.pitch_cal_data.min_val,cal_data.pitch_cal_data.min_val,1001,0);
+  roll_cal = 1000 + resizeInt(analogRead(PIN_ROLL),cal_data.roll_cal_data.max_val - cal_data.roll_cal_data.min_val,cal_data.roll_cal_data.min_val,1001,0);
   ch5_cal=1000+digitalRead(PIN_CH5)*1000;
   ch6_cal=1000+digitalRead(PIN_ADR)*1000;
   ch7_cal=1000 + analogRead(PIN_VRP) / 1023.0 * 1000;
