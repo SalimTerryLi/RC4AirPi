@@ -190,10 +190,11 @@ void loop() {
   ////////////////////
   // Input basic value
   int throtte_cal, yaw_cal, pitch_cal, roll_cal,ch5_cal,ch6_cal,ch7_cal,ch8_cal,ch9_cal,ch10_cal;              // Calibrated basic analog input
-  throtte_cal = 1000 + resizeInt(analogRead(PIN_THR),cal_data.thr_cal_data.max_val - cal_data.thr_cal_data.min_val,cal_data.thr_cal_data.min_val,1001,0);
-  yaw_cal = 1000 + resizeInt(analogRead(PIN_YAW),cal_data.yaw_cal_data.max_val - cal_data.yaw_cal_data.min_val,cal_data.yaw_cal_data.min_val,1001,0);
-  pitch_cal = 1000 + resizeInt(analogRead(PIN_PITCH),cal_data.pitch_cal_data.max_val - cal_data.pitch_cal_data.min_val,cal_data.pitch_cal_data.min_val,1001,0);
-  roll_cal = 1000 + resizeInt(analogRead(PIN_ROLL),cal_data.roll_cal_data.max_val - cal_data.roll_cal_data.min_val,cal_data.roll_cal_data.min_val,1001,0);
+  throtte_cal = 1000 + resizeInt(analogRead(PIN_THR),cal_data.thr_cal_data.max_val - cal_data.thr_cal_data.min_val,cal_data.thr_cal_data.min_val,1000,0);
+  yaw_cal = 1000 + resizeInt(analogRead(PIN_YAW),cal_data.yaw_cal_data.max_val - cal_data.yaw_cal_data.min_val,cal_data.yaw_cal_data.min_val,1000,0);
+  pitch_cal = 1000 + resizeInt(analogRead(PIN_PITCH),cal_data.pitch_cal_data.max_val - cal_data.pitch_cal_data.min_val,cal_data.pitch_cal_data.min_val,1000,0);
+  roll_cal = 1000 + resizeInt(analogRead(PIN_ROLL),cal_data.roll_cal_data.max_val - cal_data.roll_cal_data.min_val,cal_data.roll_cal_data.min_val,1000,0);
+  Serial.println(cal_data.thr_cal_data.max_val - cal_data.thr_cal_data.min_val);
   ch5_cal=1000+digitalRead(PIN_CH5)*1000;
   ch6_cal=1000+digitalRead(PIN_ADR)*1000;
   ch7_cal=1000 + analogRead(PIN_VRP) / 1023.0 * 1000;
@@ -309,22 +310,27 @@ void cal_loop() {
     }
     //////////////////////////////////////////////////
 
+    thr_val = analogRead(PIN_THR);
+    yaw_val = analogRead(PIN_YAW);
+    roll_val = analogRead(PIN_ROLL);
+    pitch_val = analogRead(PIN_PITCH);
+
     if (thr_val > cal_data.thr_cal_data.max_val)
       cal_data.thr_cal_data.max_val = thr_val;
     if (thr_val < cal_data.thr_cal_data.min_val)
-      cal_data.thr_cal_data.max_val = thr_val;
+      cal_data.thr_cal_data.min_val = thr_val;
     if (yaw_val > cal_data.yaw_cal_data.max_val)
       cal_data.yaw_cal_data.max_val = yaw_val;
     if (yaw_val < cal_data.yaw_cal_data.min_val)
-      cal_data.yaw_cal_data.max_val = yaw_val;
+      cal_data.yaw_cal_data.min_val = yaw_val;
     if (roll_val > cal_data.roll_cal_data.max_val)
       cal_data.roll_cal_data.max_val = roll_val;
     if (roll_val < cal_data.roll_cal_data.min_val)
-      cal_data.roll_cal_data.max_val = roll_val;
+      cal_data.roll_cal_data.min_val = roll_val;
     if (pitch_val > cal_data.pitch_cal_data.max_val)
       cal_data.pitch_cal_data.max_val = pitch_val;
     if (pitch_val < cal_data.pitch_cal_data.min_val)
-      cal_data.pitch_cal_data.max_val = pitch_val;
+      cal_data.pitch_cal_data.min_val = pitch_val;
 
   }
 }
