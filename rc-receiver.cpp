@@ -19,7 +19,7 @@ typedef struct{
 	bool shouldServerExit=false;
 } rc_data;
 
-RF24 radio(22,10);
+RF24 radio(22,0);
 
 const uint64_t addresses[2] = { 0xABCDABCD71LL, 0x544d52687CLL };
 
