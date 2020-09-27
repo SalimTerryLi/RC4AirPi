@@ -14,6 +14,8 @@
 #include "RF24.h"
 #include "printf.h"
 
+#include <RS-FEC.h>
+
 /*Hardware defination: */
 
 //Digital Input
@@ -60,6 +62,8 @@ typedef struct AnaAnalogIn_Calibrations_Set {
 };
 
 AnaAnalogIn_Calibrations_Set cal_data;
+
+RS::ReedSolomon<24, 8> rs;
 
 int RFFailCount=0;
 
@@ -129,11 +133,11 @@ void setup() {
   }
 
   radio.begin();
-  radio.setChannel(1);
+  radio.setChannel(102);
   radio.setPALevel(RF24_PA_MAX);
   radio.setDataRate(RF24_1MBPS);
   radio.setAutoAck(0);
-  radio.setCRCLength(RF24_CRC_8);
+  radio.disableCRC();
   radio.openWritingPipe(pipes[1]);
   radio.openReadingPipe(1, pipes[0]);
   printf_begin();
@@ -194,7 +198,7 @@ void loop() {
   yaw_cal = 1000 + resizeInt(analogRead(PIN_YAW),cal_data.yaw_cal_data.max_val - cal_data.yaw_cal_data.min_val,cal_data.yaw_cal_data.min_val,1000,0);
   pitch_cal = 1000 + resizeInt(analogRead(PIN_PITCH),cal_data.pitch_cal_data.max_val - cal_data.pitch_cal_data.min_val,cal_data.pitch_cal_data.min_val,1000,0);
   roll_cal = 1000 + resizeInt(analogRead(PIN_ROLL),cal_data.roll_cal_data.max_val - cal_data.roll_cal_data.min_val,cal_data.roll_cal_data.min_val,1000,0);
-  Serial.println(cal_data.thr_cal_data.max_val - cal_data.thr_cal_data.min_val);
+  //Serial.println(cal_data.thr_cal_data.max_val - cal_data.thr_cal_data.min_val);
   ch5_cal=1000+digitalRead(PIN_CH5)*1000;
   ch6_cal=1000+digitalRead(PIN_ADR)*1000;
   ch7_cal=1000 + analogRead(PIN_VRP) / 1023.0 * 1000;
@@ -203,7 +207,7 @@ void loop() {
   ch10_cal=1000+digitalRead(PIN_THR_IO)*1000;
   /////////////////////////////////////////
   // Payload generate
-  char payload[22];                                           // Data which will be sent by NRF24L01+ later
+  uint8_t payload[24];                                           // Data which will be sent by NRF24L01+ later
   payload[0] = 'A';                                           // Header
   payload[1] = 'P';                                           // Header
   payload[2] = throtte_cal / 256;                             // First byte
@@ -226,13 +230,22 @@ void loop() {
   payload[19] = ch9_cal % 256;
   payload[20] = ch10_cal / 256;
   payload[21] = ch10_cal % 256;
+  uint16_t checksum=0;
+  for(int i=0;i<22;++i){
+    checksum+=payload[i];
+  }
+  payload[22] = checksum % 256;
+  payload[23] = checksum / 256;
+
+  char fec_enc[32];
+  rs.Encode(payload,fec_enc);
   
   /////////////////////////////////////////
   // RF24 operate
   char pong_back[10];
   bool isRFok=false;
   while(radio.available()){       
-    radio.read(&pong_back,10);
+    radio.read(pong_back,10);
     if ((pong_back[0]=='P') && (pong_back[1]=='A')){
       isRFok=true;
     }
@@ -246,16 +259,16 @@ void loop() {
   else {
     RFFailCount++;
   }
-  if (RFFailCount<5) {
+  if (RFFailCount<30) {
     digitalWrite(PIN_RF_LED,HIGH);
   }
   else
   {
     digitalWrite(PIN_RF_LED,LOW);
-    RFFailCount=5;
+    RFFailCount=30;
   }
   radio.stopListening();
-  radio.writeFast(&payload, 22);
+  radio.writeFast(fec_enc, 32);
   radio.txStandBy();
   radio.startListening();
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -264,8 +277,8 @@ void loop() {
   }
   loopCount++;
   if (millis() - last_cycle_timestamp_ms >= 1000) {
-    Serial.print(longestLoop); Serial.print(" ");
-    Serial.println(loopCount);
+    //Serial.print(longestLoop); Serial.print(" ");
+    //Serial.println(loopCount);
     last_cycle_timestamp_ms = millis();
     longestLoop = 0;
     loopCount = 0;
